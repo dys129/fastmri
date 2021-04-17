@@ -82,8 +82,8 @@ def build_args():
 
     # basic args
     path_config = pathlib.Path("../../fastmri_dirs.yaml")
-    backend = "ddp"
-    num_gpus = 32
+    backend = "ddp" if os.name == "posix" else "dp"
+    num_gpus = -1
     batch_size = 1
 
     # set defaults based on optional directory config
