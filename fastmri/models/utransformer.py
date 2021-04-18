@@ -9,14 +9,12 @@ class U_Transformer(nn.Module):
     def __init__(self, 
         in_chans: int,
         out_chans: int,
-        chans: int = 32,
-        bilinear: bool = True ):
-
-        super(U_Transformer, self).__init__()
+        chans: int = 32
+        ):
+        super().__init__()
         self.n_channels = in_chans
         self.n_classes = out_chans
         self.chans = chans
-        self.bilinear = bilinear
 
         self.inc = DoubleConv(in_chans, chans)
         self.down1 = Down(chans, chans*2)

@@ -129,7 +129,7 @@ def build_args():
     parser.set_defaults(
         in_chans=1,  # number of input channels to U-Net
         out_chans=1,  # number of output chanenls to U-Net
-        chans=32,  # number of top-level U-Net channels
+        chans=64,  # number of top-level U-Net channels
         drop_prob=0.0,  # dropout probability
         lr=0.001,  # RMSProp learning rate
         lr_step_size=40,  # epoch at which to decrease learning rate

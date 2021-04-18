@@ -5,6 +5,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
+NORM_FUNC = nn.InstanceNorm2d
+ACTIVATION_FUNC = nn.LeakyReLU(negative_slope=0.2, inplace=True) #nn.ReLU(inplace=True)
+POOL_FUNC = nn.MaxPool2d(2)
 
 #====================================================================
 #=========================U-Net======================================
@@ -18,11 +21,11 @@ class DoubleConv(nn.Module):
             mid_channels = out_channels
         self.double_conv = nn.Sequential(
             nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(mid_channels),
-            nn.ReLU(inplace=True),
+            NORM_FUNC(mid_channels),
+            ACTIVATION_FUNC,
             nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True)
+            NORM_FUNC(out_channels),
+            ACTIVATION_FUNC
         )
 
     def forward(self, x):
@@ -35,7 +38,7 @@ class Down(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
         self.maxpool_conv = nn.Sequential(
-            nn.MaxPool2d(2),
+            POOL_FUNC,
             DoubleConv(in_channels, out_channels)
         )
 
@@ -51,7 +54,7 @@ class Up(nn.Module):
 
         # if bilinear, use the normal convolutions to reduce the number of channels
         if bilinear:
-            self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+            self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
             self.conv = DoubleConv(in_channels, out_channels, in_channels // 2)
         else:
             self.up = nn.ConvTranspose2d(in_channels , in_channels // 2, kernel_size=2, stride=2)
@@ -75,51 +78,12 @@ class Up(nn.Module):
 
 class OutConv(nn.Module):
     def __init__(self, in_channels, out_channels):
-        super(OutConv, self).__init__()
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=1)
-    
+        super().__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=1)    
 
     def forward(self, x):
         return self.conv(x)
 
-    '''
-    def __init__(self, channel, k_size=3):
-        #super(GrayscaleAttention, self).__init__()
-        super(OutConv, self).__init__()
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        # self.conv = nn.Conv1d(1, 1, kernel_size=k_size, padding=(k_size - 1) // 2, bias=False) 
-        self.linear = nn.Linear(256, 256)
-        self.sigmoid = nn.Sigmoid()
- 
-    def forward(self, x):
-        b, c, h, w = x.size()
-        print('x size', x.size())
-        is_int = 1
-        if c != 1:
-            raise NotImplementedError()
-        if x.max() <= 1:
-            is_int = 0
-            x.data *= 255
-            x = x.long()
-
-        x_onehot = torch.zeros([b, c, 256, h, w])
-        try:
-            x_onehot = x_onehot.to(torch.device("cuda:0"))
-        except RuntimeError:
-            pass
-        # print(x)
-        # print(x_onehot)
-        x_onehot = x_onehot.scatter_(2, x.unsqueeze(2).long(), 1) #[b,c,d,w,h]
-        a = x_onehot.squeeze(1) #[b,d,w,h]
-        y = self.avg_pool(a) #[b,d,1,1]
-        # y = self.conv(y.squeeze(-1).transpose(-1, -2)).transpose(-1, -2).unsqueeze(-1)
-        y = self.linear(y.squeeze(-1).squeeze(-1)).unsqueeze(-1).unsqueeze(-1)
-        y = self.sigmoid(y)
-        a = a * y.expand_as(a)
-        x_onehot = a.unsqueeze(1)
-        x = torch.argmax(x_onehot, dim=2).float()
-        return x if is_int==1 else x.data/255
-    '''
 #====================================================================
 #==========================Transformer===============================
 #====================================================================
@@ -127,7 +91,7 @@ class MultiHeadDense(nn.Module):
     def __init__(self, d):
         super(MultiHeadDense, self).__init__()
         #self.weight = nn.Parameter(torch.Tensor(d, d))
-        self.linear = nn.Linear(d, d)
+        self.linear = nn.Linear(d, d, bias=False)
 
     def forward(self, x):
         # x:[b, h*w, d]
@@ -154,17 +118,15 @@ class MultiHeadAttention(nn.Module):
         if d_model % 4 != 0:
             raise ValueError("Cannot use sin/cos positional encoding with "
                             "odd dimension (got dim={:d})".format(d_model))
-        pe = torch.zeros(d_model, height, width)
-        try:
-            pe = pe.to(torch.device("cuda:0"))
-        except RuntimeError:
-            pass
+        device = torch.device("cuda:0")
+        pe = torch.zeros(d_model, height, width, device=device)
+
         # Each dimension use half of d_model
         d_model = int(d_model / 2)
-        div_term = torch.exp(torch.arange(0., d_model, 2) *
+        div_term = torch.exp(torch.arange(0., d_model, 2, device=device) *
                             -(math.log(10000.0) / d_model))
-        pos_w = torch.arange(0., width).unsqueeze(1)
-        pos_h = torch.arange(0., height).unsqueeze(1)
+        pos_w = torch.arange(0., width, device=device).unsqueeze(1)
+        pos_h = torch.arange(0., height, device=device).unsqueeze(1)
         pe[0:d_model:2, :, :] = torch.sin(pos_w * div_term).transpose(0, 1).unsqueeze(1).repeat(1, height, 1)
         pe[1:d_model:2, :, :] = torch.cos(pos_w * div_term).transpose(0, 1).unsqueeze(1).repeat(1, height, 1)
         pe[d_model::2, :, :] = torch.sin(pos_h * div_term).transpose(0, 1).unsqueeze(2).repeat(1, 1, width)
@@ -198,31 +160,31 @@ class MultiHeadCrossAttention(MultiHeadAttention):
     def __init__(self, channelY, channelS):
         super(MultiHeadCrossAttention, self).__init__()
         self.Sconv = nn.Sequential(
-            nn.MaxPool2d(2),
+            POOL_FUNC,
             nn.Conv2d(channelS, channelS, kernel_size=1),
-            nn.BatchNorm2d(channelS),
-            nn.ReLU(inplace=True)
+            NORM_FUNC(channelS),
+            ACTIVATION_FUNC
         )
         self.Yconv = nn.Sequential(
             nn.Conv2d(channelY, channelS, kernel_size=1),
-            nn.BatchNorm2d(channelS),
-            nn.ReLU(inplace=True)
+            NORM_FUNC(channelS),
+            ACTIVATION_FUNC
         )
         self.query = MultiHeadDense(channelS)
         self.key = MultiHeadDense(channelS)
         self.value = MultiHeadDense(channelS)
         self.conv = nn.Sequential(
             nn.Conv2d(channelS, channelS, kernel_size=1),
-            nn.BatchNorm2d(channelS),
-            nn.ReLU(inplace=True),
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+            NORM_FUNC(channelS),
+            nn.Sigmoid(),
+            nn.ConvTranspose2d(channelS, channelS, kernel_size=2, stride=2)
         )
         self.Yconv2 = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
+            nn.ConvTranspose2d(channelY, channelY, kernel_size=2, stride=2),
             nn.Conv2d(channelY, channelY, kernel_size=3, padding=1),
             nn.Conv2d(channelY, channelS, kernel_size=1),
-            nn.BatchNorm2d(channelS),
-            nn.ReLU(inplace=True)
+            NORM_FUNC(channelS),
+            ACTIVATION_FUNC
         )
         self.softmax = nn.Softmax(dim=1)
     
@@ -253,12 +215,12 @@ class TransformerUp(nn.Module):
         super(TransformerUp, self).__init__()
         self.MHCA = MultiHeadCrossAttention(Ychannels, Schannels)
         self.conv = nn.Sequential(
-            nn.Conv2d(Ychannels, Schannels, kernel_size=3, stride=1, padding=1, bias=True),
-            nn.BatchNorm2d(Schannels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(Schannels, Schannels, kernel_size=3, stride=1, padding=1, bias=True),
-            nn.BatchNorm2d(Schannels),
-            nn.ReLU(inplace=True)
+            nn.Conv2d(Ychannels, Schannels, kernel_size=3, stride=1, padding=1),
+            NORM_FUNC(Schannels),
+            ACTIVATION_FUNC,
+            nn.Conv2d(Schannels, Schannels, kernel_size=3, stride=1, padding=1),
+            NORM_FUNC(Schannels),
+            ACTIVATION_FUNC
         )
 
     def forward(self, Y, S):

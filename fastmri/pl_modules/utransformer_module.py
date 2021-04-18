@@ -103,10 +103,8 @@ class UtransformerModule(MriModule):
         }
 
     def configure_optimizers(self):
-        optim = torch.optim.RMSprop(
-            self.parameters(),
-            lr=self.lr,
-            weight_decay=self.weight_decay,
+        optim = torch.optim.Adam(
+            self.parameters(), lr=self.lr, weight_decay=self.weight_decay
         )
         scheduler = torch.optim.lr_scheduler.StepLR(
             optim, self.lr_step_size, self.lr_gamma
