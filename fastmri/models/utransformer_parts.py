@@ -6,7 +6,7 @@ import torch.nn.functional as F
 import math
 
 NORM_FUNC = nn.InstanceNorm2d
-ACTIVATION_FUNC = nn.LeakyReLU(negative_slope=0.2, inplace=True) #nn.ReLU(inplace=True)
+ACTIVATION_FUNC = nn.LeakyReLU(negative_slope=0.2, inplace=True) #nn.ReLU(inplace=True) #
 POOL_FUNC = nn.MaxPool2d(2)
 
 #====================================================================
@@ -89,7 +89,7 @@ class OutConv(nn.Module):
 #====================================================================
 class MultiHeadDense(nn.Module):
     def __init__(self, d):
-        super(MultiHeadDense, self).__init__()
+        super().__init__()
         #self.weight = nn.Parameter(torch.Tensor(d, d))
         self.linear = nn.Linear(d, d, bias=False)
 
@@ -104,7 +104,7 @@ class MultiHeadDense(nn.Module):
 
 class MultiHeadAttention(nn.Module):
     def __init__(self):
-        super(MultiHeadAttention, self).__init__()
+        super().__init__()
     
     def positional_encoding_2d(self, d_model, height, width):
         """
@@ -138,7 +138,7 @@ class MultiHeadAttention(nn.Module):
 
 class MultiHeadSelfAttention(MultiHeadAttention):
     def __init__(self, channel):
-        super(MultiHeadSelfAttention, self).__init__()
+        super().__init__()
         self.query = MultiHeadDense(channel)
         self.key = MultiHeadDense(channel)
         self.value = MultiHeadDense(channel)
@@ -158,7 +158,7 @@ class MultiHeadSelfAttention(MultiHeadAttention):
 
 class MultiHeadCrossAttention(MultiHeadAttention):
     def __init__(self, channelY, channelS):
-        super(MultiHeadCrossAttention, self).__init__()
+        super().__init__()
         self.Sconv = nn.Sequential(
             POOL_FUNC,
             nn.Conv2d(channelS, channelS, kernel_size=1),
@@ -212,7 +212,7 @@ class MultiHeadCrossAttention(MultiHeadAttention):
 
 class TransformerUp(nn.Module):
     def __init__(self, Ychannels, Schannels):
-        super(TransformerUp, self).__init__()
+        super().__init__()
         self.MHCA = MultiHeadCrossAttention(Ychannels, Schannels)
         self.conv = nn.Sequential(
             nn.Conv2d(Ychannels, Schannels, kernel_size=3, stride=1, padding=1),

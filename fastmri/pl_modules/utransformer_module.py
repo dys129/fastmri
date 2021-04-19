@@ -8,7 +8,7 @@ LICENSE file in the root directory of this source tree.
 from argparse import ArgumentParser
 
 import torch
-from fastmri.models import U_Transformer
+from fastmri.models import U_Transformer, Utransformer
 from torch.nn import functional as F
 
 from .mri_module import MriModule
@@ -60,7 +60,7 @@ class UtransformerModule(MriModule):
         self.lr_gamma = lr_gamma
         self.weight_decay = weight_decay
 
-        self.transformer = U_Transformer(self.in_chans, self.out_chans, self.chans)
+        self.transformer = Utransformer(self.in_chans, self.out_chans, self.chans)
 
     def forward(self, image):
         return self.transformer(image.unsqueeze(1)).squeeze(1)
@@ -103,6 +103,17 @@ class UtransformerModule(MriModule):
         }
 
     def configure_optimizers(self):
+        optim = torch.optim.RMSprop(
+            self.parameters(),
+            lr=self.lr,
+            weight_decay=self.weight_decay,
+        )
+        scheduler = torch.optim.lr_scheduler.StepLR(
+            optim, self.lr_step_size, self.lr_gamma
+        )
+
+        return [optim], [scheduler]
+        '''
         optim = torch.optim.Adam(
             self.parameters(), lr=self.lr, weight_decay=self.weight_decay
         )
@@ -111,6 +122,7 @@ class UtransformerModule(MriModule):
         )
 
         return [optim], [scheduler]
+        '''
 
     @staticmethod
     def add_model_specific_args(parent_parser):  # pragma: no-cover
