@@ -7,14 +7,14 @@ from pathlib import Path
 num_middle_slices=15
 size=64
 
-# source_data_folder="/home/anon/reduced_fastmri/singlecoil_train"
-# dest_data_folder="/home/anon/reduced_fastmri/small_data/singlecoil_train"
+source_data_folder="/home/anon/reduced_fastmri/singlecoil_train"
+dest_data_folder="/home/anon/reduced_fastmri/small_data/singlecoil_train"
 
 # source_data_folder="/home/anon/reduced_fastmri/singlecoil_val"
 # dest_data_folder="/home/anon/reduced_fastmri/small_data/singlecoil_val"
 
-source_data_folder="/home/anon/reduced_fastmri/singlecoil_test"
-dest_data_folder="/home/anon/reduced_fastmri/small_data/singlecoil_test"
+# source_data_folder="/home/anon/reduced_fastmri/singlecoil_test"
+# dest_data_folder="/home/anon/reduced_fastmri/small_data/singlecoil_test"
 
 if __name__ == '__main__':
     files = list(Path(source_data_folder).iterdir())
