@@ -17,7 +17,6 @@ if __name__ == '__main__':
         print (fname)
         orig = h5py.File(fname)
         hf = h5py.File(dest_path / fname.name, 'a')
-        kspace = orig['kspace'][()]
         volume_kspace = orig['kspace'][()]
         kspace_list = []
         reconstruction_list = []
@@ -32,7 +31,6 @@ if __name__ == '__main__':
 
             kspace_list.append(tensor_to_complex_np(slice_crop))
             reconstruction_list.append(reconstruction)
-
 
         hf['kspace'] = np.stack(kspace_list)
         hf['reconstruction_esc'] = np.stack(reconstruction_list)
