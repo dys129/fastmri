@@ -15,6 +15,10 @@ class Utransformer(nn.Module):
         #MHSA block
         mhsa_heads: int = 4,
         mhsa_dropout: float = 0.0,
+
+        #MHCA block
+        mhca_heads: int = 1,
+        mhca_dropout: float = 0.0
     ):
         """
         Args:
@@ -33,6 +37,8 @@ class Utransformer(nn.Module):
         self.drop_prob = drop_prob
         self.mhsa_heads = mhsa_heads
         self.mhsa_dropout = mhsa_dropout
+        self.mhca_heads = mhca_heads
+        self.mhca_dropout = mhca_dropout
 
         self.down_sample_layers = nn.ModuleList([ConvBlock(in_chans, chans, drop_prob)])
         ch = chans
@@ -44,11 +50,14 @@ class Utransformer(nn.Module):
 
         self.up_conv = nn.ModuleList()
         self.up_transpose_conv = nn.ModuleList()
+        self.up_mhca = nn.ModuleList()
         for _ in range(num_pool_layers - 1):
             self.up_transpose_conv.append(TransposeConvBlock(ch * 2, ch))
             self.up_conv.append(ConvBlock(ch * 2, ch, drop_prob))
+            self.up_mhca.append(MHCABlock(mhca_heads, ch))
             ch //= 2
-
+        
+        self.up_mhca.append(MHCABlock(mhca_heads, ch))
         self.up_transpose_conv.append(TransposeConvBlock(ch * 2, ch))
         self.up_conv.append(
             nn.Sequential(
@@ -78,10 +87,11 @@ class Utransformer(nn.Module):
         output = self.mhsa(output)
 
         # apply up-sampling layers
-        for transpose_conv, conv in zip(self.up_transpose_conv, self.up_conv):
+        for transpose_conv, conv, mhca in zip(self.up_transpose_conv, self.up_conv, self.up_mhca):
             downsample_layer = stack.pop()
+            
+            downsample_layer = mhca(downsample_layer, output)
             output = transpose_conv(output)
-
             # reflect pad on the right/botton if needed to handle odd input dimensions
             padding = [0, 0, 0, 0]
             if output.shape[-1] != downsample_layer.shape[-1]:
@@ -238,7 +248,8 @@ class MultiHeadAttention(nn.Module):
         k = k.transpose(1,2)
         q = q.transpose(1,2)
         v = v.transpose(1,2)
-# calculate attention using function we will define next
+
+        # calculate attention using function we will define next
         scores = attention(q, k, v, self.d_k, mask, self.dropout)
         
         # concatenate heads and put through final linear layer
@@ -267,3 +278,45 @@ class MHSABlock(nn.Module):
         att = self.attention(x2, x2, x2).permute(0, 2, 1).reshape(b, c, h, w)
         x = att
         return x
+class MHCABlock(nn.Module):
+    def __init__(self, heads, channels, dropout = 0.0, pos_enc = True):
+        super().__init__()
+        self.pos_enc = pos_enc
+
+        self.mha = MultiHeadAttention(heads, channels, dropout)
+
+        #VERIFY
+        self.conv_S = nn.Sequential( 
+            nn.MaxPool2d(2),
+            nn.Conv2d(channels, channels, kernel_size=1, stride=1, bias=False),
+            nn.InstanceNorm2d(channels),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+        )
+        self.conv_Y = nn.Sequential(
+            nn.Conv2d(channels * 2, channels, kernel_size=1, stride=1, bias=False), 
+            nn.InstanceNorm2d(channels),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+        )
+        self.block_Z = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=1, stride=1, bias=False),
+            nn.InstanceNorm2d(channels),
+            nn.Sigmoid(),
+            nn.ConvTranspose2d(channels, channels, kernel_size=2, stride=2),
+        )
+
+    def forward(self, S, Y):
+        Sb, Sc, Sh, Sw = S.size()
+        Yb, Yc, Yh, Yw = Y.size()
+
+        if self.pos_enc:
+            S = S + positional_encoding_2d(Sc, Sh, Sw, device=S.device)
+            Y = Y + positional_encoding_2d(Yc, Yh, Yw, device=Y.device)
+
+        V = self.conv_S(S).reshape(Yb, Sc, Yh*Yw).permute(0, 2, 1)
+        KQ = self.conv_Y(Y).reshape(Yb, Sc, Yh*Yw).permute(0, 2, 1)
+
+        Z = self.mha(KQ, KQ, V).permute(0, 2, 1).reshape(Yb, Sc, Yh, Yw)
+        Z = self.block_Z(Z)
+
+        output =  Z * S
+        return output
