@@ -26,8 +26,9 @@ if __name__ == '__main__':
             slice_kspace = volume_kspace[i]
             slice_kspace2 = to_tensor(slice_kspace)  # Convert from numpy array to pytorch tensor
             slice_image = fastmri.ifft2c(slice_kspace2)  # Apply Inverse Fourier Transform to get the complex image
-            slice_crop = complex_center_crop(slice_image, (size, size))
-            reconstruction = fastmri.complex_abs(slice_crop)
+            slice_crop = complex_center_crop(slice_kspace2, (size, size))
+            image_crop = complex_center_crop(slice_image, (size, size))
+            reconstruction = fastmri.complex_abs(image_crop)
 
             kspace_list.append(tensor_to_complex_np(slice_crop))
             reconstruction_list.append(reconstruction)
@@ -38,3 +39,4 @@ if __name__ == '__main__':
         hf.close()
         orig.close()
 
+        break
