@@ -36,5 +36,3 @@ if __name__ == '__main__':
 
         hf.close()
         orig.close()
-
-        break
