@@ -8,7 +8,7 @@ num_middle_slices=15
 size=64
 
 source_data_folder="/home/anon/reduced_fastmri/singlecoil_train"
-dest_data_folder="/home/anon/reduced_fastmri/small_train"
+dest_data_folder="/home/anon/reduced_fastmri/small_data/singlecoil_train"
 
 if __name__ == '__main__':
     files = list(Path(source_data_folder).iterdir())
@@ -16,7 +16,7 @@ if __name__ == '__main__':
     for fname in sorted(files):
         print (fname)
         orig = h5py.File(fname)
-        hf = h5py.File(dest_path / fname.name, 'a')
+        dest = h5py.File(dest_path / fname.name, 'a')
         volume_kspace = orig['kspace'][()]
         kspace_list = []
         reconstruction_list = []
@@ -31,8 +31,11 @@ if __name__ == '__main__':
             kspace_list.append(tensor_to_complex_np(kspace_crop))
             reconstruction_list.append(reconstruction)
 
-        hf['kspace'] = np.stack(kspace_list)
-        hf['reconstruction_esc'] = np.stack(reconstruction_list)
+        dest['kspace'] = np.stack(kspace_list)
+        dest['reconstruction_esc'] = np.stack(reconstruction_list)
+        dest['ismrmrd_header']=orig['ismrmrd_header'][()]
 
-        hf.close()
+        dest.close()
         orig.close()
+
+        
