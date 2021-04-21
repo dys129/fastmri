@@ -40,6 +40,13 @@ class Utransformer(nn.Module):
         self.mhca_heads = mhca_heads
         self.mhca_dropout = mhca_dropout
 
+        self.use_mhsa = mhsa_heads > 0
+        self.use_mhca = mhca_heads > 0
+
+        # Set to 1 to avoid division by 0
+        mhsa_heads = max(mhsa_heads, 1)
+        mhca_heads = max(mhca_heads, 1)
+
         self.down_sample_layers = nn.ModuleList([ConvBlock(in_chans, chans, drop_prob)])
         ch = chans
         for _ in range(num_pool_layers - 1):
@@ -84,13 +91,17 @@ class Utransformer(nn.Module):
             output = F.avg_pool2d(output, kernel_size=2, stride=2, padding=0)
 
         output = self.conv(output)
-        output = self.mhsa(output)
+
+        if self.use_mhsa:
+            output = self.mhsa(output)
 
         # apply up-sampling layers
         for transpose_conv, conv, mhca in zip(self.up_transpose_conv, self.up_conv, self.up_mhca):
             downsample_layer = stack.pop()
             
-            downsample_layer = mhca(downsample_layer, output)
+            if self.use_mhca:
+                downsample_layer = mhca(downsample_layer, output)
+
             output = transpose_conv(output)
             # reflect pad on the right/botton if needed to handle odd input dimensions
             padding = [0, 0, 0, 0]

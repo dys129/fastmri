@@ -52,7 +52,12 @@ def cli_main(args):
         in_chans=args.in_chans,
         out_chans=args.out_chans,
         chans=args.chans,
+        num_pool_layers=args.num_pool_layers,
         drop_prob=args.drop_prob,
+        mhsa_heads=args.mhsa_heads,
+        mhsa_dropout=args.mhca_dropout,
+        mhca_heads=args.mhca_heads,
+        mhca_dropout=args.mhca_dropout,
         lr=args.lr,
         lr_step_size=args.lr_step_size,
         lr_gamma=args.lr_gamma,
@@ -130,7 +135,12 @@ def build_args():
         in_chans=1,  # number of input channels to U-Net
         out_chans=1,  # number of output chanenls to U-Net
         chans=32,  # number of top-level U-Net channels
+        num_pool_layers=4,  # number of U-Net pooling layers
         drop_prob=0.0,  # dropout probability
+        mhsa_heads=4,
+        mhsa_dropout=0.0,
+        mhca_heads=0, # DISABLED BY DEFAULT
+        mhca_dropout=0.0,
         lr=0.001,  # RMSProp learning rate
         lr_step_size=40,  # epoch at which to decrease learning rate
         lr_gamma=0.1,  # extent to which to decrease learning rate

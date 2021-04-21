@@ -24,7 +24,12 @@ class UtransformerModule(MriModule):
         in_chans=1,
         out_chans=1,
         chans=32,
+        num_pool_layers=4,
         drop_prob=0.0,
+        mhsa_heads=4,
+        mhsa_dropout=0.0,
+        mhca_heads=0,
+        mhca_dropout=0.0,
         lr=0.001,
         lr_step_size=40,
         lr_gamma=0.1,
@@ -54,13 +59,28 @@ class UtransformerModule(MriModule):
         self.in_chans = in_chans
         self.out_chans = out_chans
         self.chans = chans
+        self.num_pool_layers = num_pool_layers
         self.drop_prob = drop_prob
+        self.mhsa_heads = mhsa_heads
+        self.mhsa_dropout= mhsa_dropout
+        self.mhca_heads = mhca_heads
+        self.mhca_dropout = mhca_dropout
         self.lr = lr
         self.lr_step_size = lr_step_size
         self.lr_gamma = lr_gamma
         self.weight_decay = weight_decay
 
-        self.transformer = Utransformer(self.in_chans, self.out_chans, self.chans)
+        self.transformer = Utransformer(
+            in_chans = self.in_chans, 
+            out_chans = self.out_chans, 
+            chans = self.chans,
+            num_pool_layers = self.num_pool_layers,
+            drop_prob = self.drop_prob,
+            mhsa_heads = self.mhsa_heads,
+            mhsa_dropout = self.mhsa_dropout,
+            mhca_heads = self.mhca_heads,
+            mhca_dropout = self.mhca_dropout,
+            )
 
     def forward(self, image):
         return self.transformer(image.unsqueeze(1)).squeeze(1)
@@ -144,6 +164,18 @@ class UtransformerModule(MriModule):
         )
         parser.add_argument(
             "--drop_prob", default=0.0, type=float, help="U-Net dropout probability"
+        )
+        parser.add_argument(
+            "--mhsa_heads", default=1, type=int, help="MHSA block number of heads (0 - disable)"
+        )
+        parser.add_argument(
+            "--mhsa_dropout", default=1, type=int, help="MHSA block dropout"
+        )
+        parser.add_argument(
+            "--mhca_heads", default=1, type=int, help="MHCA block number of heads (0 - disable)"
+        )
+        parser.add_argument(
+            "--mhca_dropout", default=1, type=int, help="MHCA block dropout"
         )
 
         # training params (opt)
