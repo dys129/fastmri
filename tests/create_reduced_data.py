@@ -5,13 +5,13 @@ import numpy as np
 from pathlib import Path
 
 num_middle_slices=15
-size=64
+size=80
 
-source_data_folder="/home/anon/reduced_fastmri/singlecoil_train"
-dest_data_folder="/home/anon/reduced_fastmri/small_data/singlecoil_train"
+# source_data_folder="/home/anon/reduced_fastmri/singlecoil_train"
+# dest_data_folder="/home/anon/reduced_fastmri/small_data/singlecoil_train"
 
-# source_data_folder="/home/anon/reduced_fastmri/singlecoil_val"
-# dest_data_folder="/home/anon/reduced_fastmri/small_data/singlecoil_val"
+source_data_folder="/home/anon/reduced_fastmri/singlecoil_val"
+dest_data_folder="/home/anon/reduced_fastmri/small_data/singlecoil_val"
 
 # source_data_folder="/home/anon/reduced_fastmri/singlecoil_test"
 # dest_data_folder="/home/anon/reduced_fastmri/small_data/singlecoil_test"
@@ -37,9 +37,15 @@ if __name__ == '__main__':
             kspace_list.append(tensor_to_complex_np(kspace_crop))
             reconstruction_list.append(reconstruction)
 
-        dest['kspace'] = np.stack(kspace_list)
-        dest['reconstruction_esc'] = np.stack(reconstruction_list)
+        stacked_kspace = np.stack(kspace_list)
+        stacked_reconstruction_esc = np.stack(reconstruction_list)
+
+        dest['kspace'] = stacked_kspace
+        dest['reconstruction_esc'] = stacked_reconstruction_esc
         dest['ismrmrd_header']=orig['ismrmrd_header'][()]
+
+        dest.attrs['norm'] = np.linalg.norm(stacked_reconstruction_esc)
+        dest.attrs['max'] = np.max(stacked_reconstruction_esc)
 
         dest.close()
         orig.close()
