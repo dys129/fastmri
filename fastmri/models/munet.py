@@ -164,7 +164,7 @@ class MUnet(nn.Module):
 
     def __init__(self, block=AxialBlock_dynamic, layers=[1, 2, 4, 1], num_classes=2, zero_init_residual=True,
                  groups=8, width_per_group=64, replace_stride_with_dilation=None,
-                 norm_layer=None, s=0.125, img_size=80, imgchan=1):
+                 norm_layer=None, s=0.125, img_size=320, imgchan=1):
         super(MUnet, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
@@ -204,6 +204,7 @@ class MUnet(nn.Module):
         self.decoder5 = nn.Conv2d(int(256 * s), int(128 * s), kernel_size=3, stride=1, padding=1)
         # self.adjust = nn.Conv2d(int(128 * s), num_classes, kernel_size=1, stride=1, padding=0)
         # self.soft = nn.Softmax(dim=1)
+        self.c1 = nn.Conv2d(16, 1, kernel_size=1, stride=1)
 
     def _make_layer(self, block, planes, blocks, kernel_size=56, stride=1, dilate=False):
         norm_layer = self._norm_layer
@@ -264,8 +265,11 @@ class MUnet(nn.Module):
         x = F.relu(F.interpolate(self.decoder4(x), scale_factor=(2, 2), mode='bilinear'))
         x = torch.add(x, x1)
         x = F.relu(F.interpolate(self.decoder5(x), scale_factor=(2, 2), mode='bilinear'))
+
         # x = self.adjust(F.relu(x))
         # pdb.set_trace()
+
+        x = self.c1(x)
         return x
 
     def forward(self, x):
