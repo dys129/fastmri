@@ -7,6 +7,7 @@ LICENSE file in the root directory of this source tree.
 
 from .mri_module import MriModule
 from .unet_module import UnetModule
+from .munet_module import MUnetModule
 from .utransformer_module import UtransformerModule
 from .varnet_module import VarNetModule
 from .data_module import FastMriDataModule
