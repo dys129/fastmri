@@ -164,7 +164,7 @@ class MUnet(nn.Module):
 
     def __init__(self, block=AxialBlock_dynamic, layers=[1, 2, 4, 1], num_classes=2, zero_init_residual=True,
                  groups=8, width_per_group=64, replace_stride_with_dilation=None,
-                 norm_layer=None, s=0.125, img_size=320, imgchan=1):
+                 norm_layer=None, s=0.125, img_size=80, imgchan=1):
         super(MUnet, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
@@ -196,8 +196,15 @@ class MUnet(nn.Module):
         self.layer4 = self._make_layer(block, int(1024 * s), layers[3], stride=2, kernel_size=(img_size // 8),
                                        dilate=replace_stride_with_dilation[2])
 
+
+
         # Decoder
-        self.decoder1 = nn.Conv2d(int(1024 * 2 * s), int(1024 * 2 * s), kernel_size=3, stride=2, padding=1)
+        # original
+        # self.decoder1 = nn.Conv2d(int(1024 * 2 * s), int(1024 * 2 * s), kernel_size=3, stride=2, padding=1)
+
+        # modified to make it work with image size of 80
+        self.decoder1 = nn.Conv2d(int(1024 * 2 * s), int(1024 * 2 * s), kernel_size=2, stride=2, padding=3)
+
         self.decoder2 = nn.Conv2d(int(1024 * 2 * s), int(1024 * s), kernel_size=3, stride=1, padding=1)
         self.decoder3 = nn.Conv2d(int(1024 * s), int(512 * s), kernel_size=3, stride=1, padding=1)
         self.decoder4 = nn.Conv2d(int(512 * s), int(256 * s), kernel_size=3, stride=1, padding=1)
@@ -256,7 +263,7 @@ class MUnet(nn.Module):
         # print(x3.shape)
         x4 = self.layer4(x3)
 
-        x = F.relu(F.interpolate(self.decoder1(x4), scale_factor=(2, 2), mode='bilinear'))
+        x = F.relu(F.interpolate(self.decoder1(x4), scale_factor=(1, 1), mode='bilinear'))
         x = torch.add(x, x4)
         x = F.relu(F.interpolate(self.decoder2(x), scale_factor=(2, 2), mode='bilinear'))
         x = torch.add(x, x3)
