@@ -79,9 +79,13 @@ class AxialAttention_dynamic(nn.Module):
         # Calculate position embedding
         all_embeddings = torch.index_select(self.relative, 1, self.flatten_index).view(self.group_planes * 2, self.kernel_size, self.kernel_size)
         q_embedding, k_embedding, v_embedding = torch.split(all_embeddings, [self.group_planes // 2, self.group_planes // 2, self.group_planes], dim=0)
-        qr = torch.einsum('bgci,cij->bgij', q, q_embedding)
-        kr = torch.einsum('bgci,cij->bgij', k, k_embedding).transpose(2, 3)
-        qk = torch.einsum('bgci, bgcj->bgij', q, k)
+        # print (q.shape, q_embedding.shape)
+        # qr = torch.einsum('bgci,cij->bgij', q, q_embedding)
+        qr = (q.unsqueeze(4) * q_embedding).sum(2)
+        # kr = torch.einsum('bgci,cij->bgij', k, k_embedding).transpose(2, 3)
+        kr = (k.unsqueeze(4) * k_embedding).sum(2).transpose(2, 3)
+        # qk = torch.einsum('bgci, bgcj->bgij', q, k)
+        qk = (q.unsqueeze(4) * k.unsqueeze(3)).sum(2)
 
 
         # multiply by factors
@@ -93,8 +97,11 @@ class AxialAttention_dynamic(nn.Module):
         #stacked_similarity = self.bn_qr(qr) + self.bn_kr(kr) + self.bn_qk(qk)
         # (N, groups, H, H, W)
         similarity = F.softmax(stacked_similarity, dim=3)
-        sv = torch.einsum('bgij,bgcj->bgci', similarity, v)
-        sve = torch.einsum('bgij,cij->bgci', similarity, v_embedding)
+        # sv = torch.einsum('bgij,bgcj->bgci', similarity, v)
+        sv = (similarity.unsqueeze(2) * v.unsqueeze(3)).sum(4)
+
+        # sve = torch.einsum('bgij,cij->bgci', similarity, v_embedding)
+        sve = (similarity.unsqueeze(2) * v_embedding).sum(4)
 
         # multiply by factors
         sv = torch.mul(sv, self.f_sv)
@@ -263,6 +270,7 @@ class MUnet(nn.Module):
         # print(x3.shape)
         x4 = self.layer4(x3)
 
+        # x = F.relu(F.interpolate(self.decoder1(x4), scale_factor=(2, 2), mode='bilinear'))
         x = F.relu(F.interpolate(self.decoder1(x4), scale_factor=(1, 1), mode='bilinear'))
         x = torch.add(x, x4)
         x = F.relu(F.interpolate(self.decoder2(x), scale_factor=(2, 2), mode='bilinear'))
