@@ -1,5 +1,14 @@
 # fastMRI
 
+## Data Preparation and how to train 
+1. Change this line https://github.com/dys129/fastmri/blob/1af40eb188d5806cc08c51b1fe36f4abf9bfdcff/tests/create_reduced_data.py#L10
+according to where you have downloaded fastmri data and where you want to make the reduced version, then run the script to make the reduced dataset.
+
+2. Set the folders in fastmri_dirs.yaml file.
+
+3. Run the script located at https://github.com/dys129/fastmri/blob/master/fastmri_examples/utransformer/train_utransformer_demo.py
+
+
 [![LICENSE](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/facebookresearch/fastMRI/blob/master/LICENSE.md)
 [![CircleCI](https://circleci.com/gh/facebookresearch/fastMRI.svg?style=svg)](https://app.circleci.com/pipelines/github/facebookresearch/fastMRI)
 
